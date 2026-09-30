@@ -1,0 +1,8 @@
+{
+  "name": "rfid-lilac1",
+  "type": "module",
+  "dependencies": {
+    "mongodb": "^6.5.0",
+    "bcryptjs": "^2.4.3"
+  }
+}
