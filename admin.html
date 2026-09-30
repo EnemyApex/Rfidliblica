@@ -1,33 +1,95 @@
-<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Admin RFID</title><link rel="stylesheet" href="style.css"></head>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin - Rfidliblica</title>
+<style>
+  body{margin:0;background:#2e2e2e;font-family:Arial;color:white;display:flex;justify-content:center;align-items:center;min-height:100vh}
+  .card{background:#3a3a3a;padding:30px;border-radius:20px;width:90%;max-width:400px;text-align:center}
+  input{width:100%;padding:12px;margin:8px 0;border-radius:10px;border:none;background:#4a4a4a;color:white;box-sizing:border-box}
+  button{width:100%;padding:12px;margin-top:10px;border-radius:10px;border:none;background:black;color:white;font-weight:bold;cursor:pointer}
+  #adminContent{display:none;width:95%;max-width:900px}
+  .box{background:#3a3a3a;padding:20px;border-radius:15px;margin:15px 0}
+  h2{margin-top:0}
+</style>
+</head>
 <body>
-<div id="lock"><div class="login-card"><h2>Admin</h2><input id="pin" type="password" placeholder="PIN admin123"><button onclick="if(pin.value==='admin123'){localStorage.setItem('admin','ok');location.reload()}">Entrer</button></div></div>
-<div id="content" style="display:none">
-<header><div class="logo">ADMIN</div><div><a href="/" class="live">USER</a> <a href="#" onclick="localStorage.clear();location.reload()" style="font-size:12px">Logout</a></div></header>
-<div class="admin-form"><h3>Lier badge à utilisateur</h3><input id="emailLink" placeholder="Email utilisateur"><input id="uidLink" placeholder="UID badge (ex: 73A9B2C1)"><button onclick="linkUser()">Lier badge</button></div>
-<div class="admin-form"><h3>Ajouter livre manuel</h3><input id="uidBook" placeholder="UID Livre"><input id="titleBook" placeholder="Titre"><input id="authorBook" placeholder="Auteur"><button onclick="addBook()">Ajouter livre</button></div>
-<h3>Utilisateurs</h3><div id="users" class="grid"></div>
-<h3 style="margin-top:20px">Livres + Emprunteur</h3><div id="books" class="grid"></div>
+
+<!-- LOGIN -->
+<div id="loginBox" class="card">
+  <h1>Admin</h1>
+  <input type="password" id="pass" placeholder="Mot de passe">
+  <button id="btnLogin">Entrer</button>
 </div>
+
+<!-- CONTENU ADMIN -->
+<div id="adminContent">
+  <h1 style="text-align:center">Rfidliblica - Admin</h1>
+
+  <div class="box">
+    <h2>Lier badge à utilisateur</h2>
+    <input id="emailUser" placeholder="Email utilisateur">
+    <input id="uidBadge" placeholder="UID badge (ex: 73A9B2C1)">
+    <button id="btnLink">Lier badge</button>
+  </div>
+
+  <div class="box">
+    <h2>Ajouter livre manuel</h2>
+    <input id="uidLivre" placeholder="UID Livre">
+    <input id="titreLivre" placeholder="Titre">
+    <input id="auteurLivre" placeholder="Auteur">
+    <button id="btnAdd">Ajouter livre</button>
+  </div>
+
+  <div class="box">
+    <h2>Livres + Emprunteur</h2>
+    <div id="listeLivres">Chargement...</div>
+  </div>
+</div>
+
 <script>
-async function lierBadge(){
-  const email = document.querySelector('input[placeholder="Email utilisateur"]').value;
-  const uid = document.querySelector('input[placeholder="UID badge (ex: 73A9B2C1)"]').value;
-  if(!email||!uid) return alert('Remplis tout');
-  const res = await fetch('/api/link-badge', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, uid}) });
-  const data = await res.json();
-  if(res.ok){ alert('Badge lié!'); location.reload(); } else alert(data.error);
-}
+const ADMIN_PASS = "admin123"; // <-- change ton mdp ici si besoin
 
-async function ajouterLivre(){
-  const uid = document.querySelector('input[placeholder="UID Livre"]').value;
-  const titre = document.querySelector('input[placeholder="Titre"]').value;
-  const auteur = document.querySelector('input[placeholder="Auteur"]').value;
-  if(!uid||!titre) return alert('UID + Titre obligatoire');
-  const res = await fetch('/api/books', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({uid, title:titre, author:auteur}) });
-  const data = await res.json();
-  if(res.ok){ alert('Livre ajouté!'); location.reload(); } else alert(data.error);
-}
+document.getElementById('btnLogin').onclick = () => {
+  if(document.getElementById('pass').value === ADMIN_PASS){
+    document.getElementById('loginBox').style.display='none';
+    document.getElementById('adminContent').style.display='block';
+    chargerLivres();
+  } else alert('Mauvais mot de passe');
+};
 
-document.querySelectorAll('button')[0].onclick = lierBadge;
-document.querySelectorAll('button')[1].onclick = ajouterLivre;
-</script></body></html>
+document.getElementById('btnLink').onclick = async () => {
+  const email = document.getElementById('emailUser').value.trim();
+  const uid = document.getElementById('uidBadge').value.trim();
+  if(!email || !uid) return alert('Remplis Email + UID');
+  const res = await fetch('/api/link-badge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,uid})});
+  const data = await res.json();
+  if(res.ok){ alert('Badge lié !'); location.reload(); } else alert(data.error);
+};
+
+document.getElementById('btnAdd').onclick = async () => {
+  const uid = document.getElementById('uidLivre').value.trim();
+  const title = document.getElementById('titreLivre').value.trim();
+  const author = document.getElementById('auteurLivre').value.trim();
+  if(!uid || !title) return alert('Remplis UID + Titre');
+  const res = await fetch('/api/books',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uid,title,author})});
+  const data = await res.json();
+  if(res.ok){ alert('Livre ajouté : '+title); location.reload(); } else alert('Erreur: '+data.error);
+};
+
+async function chargerLivres(){
+  try{
+    const res = await fetch('/api/admin/loans');
+    const data = await res.json();
+    let html = '';
+    data.parEtudiant?.forEach(e=>{
+      if(e.total>0) html+=`<p><b>${e.etudiant.name} (${e.etudiant.email})</b>: ${e.livresEmpruntes.map(b=>b.title).join(', ')} [${e.total}]</p>`;
+    });
+    if(!html) html='Aucun emprunt en cours';
+    document.getElementById('listeLivres').innerHTML = html;
+  }catch{ document.getElementById('listeLivres').innerHTML='Erreur chargement'; }
+}
+</script>
+</body>
+</html>
