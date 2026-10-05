@@ -1,39 +1,55 @@
-// app/api/borrow/route.js
-export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs'; // IMPORTANT: pas 'edge' si tu utilises Prisma
+import { MongoClient } from 'mongodb'
+
+export const dynamic = 'force-dynamic'
+
+let client
+let clientPromise
+
+if (!process.env.MONGODB_URI) {
+  throw new Error('MONGODB_URI manquant dans .env')
+}
+
+if (process.env.NODE_ENV === 'development') {
+  if (!global._mongoClientPromise) {
+    client = new MongoClient(process.env.MONGODB_URI)
+    global._mongoClientPromise = client.connect()
+  }
+  clientPromise = global._mongoClientPromise
+} else {
+  client = new MongoClient(process.env.MONGODB_URI)
+  clientPromise = client.connect()
+}
 
 export async function GET() {
-  // Pour tester dans ton navigateur comme sur ton screenshot
-  return Response.json({ ok: true, message: "API borrow alive - use POST" });
+  return Response.json({ ok: true, msg: "API borrow alive - MongoDB ready" })
 }
 
 export async function POST(req) {
   try {
-    const body = await req.json();
-    console.log("BODY RECU:", body);
-
-    const studentUid = body.studentUid || body.uid || body.tag;
+    const body = await req.json()
+    const studentUid = body.studentUid || body.uid
 
     if (!studentUid) {
-      return Response.json({ error: "studentUid manquant" }, { status: 400 });
+      return Response.json({ error: "studentUid manquant" }, { status: 400 })
     }
 
-    // ICI TA LOGIQUE - je mets un exemple safe
-    // const result = await prisma.borrow.create({ data: { studentUid } });
+    const client = await clientPromise
+    const db = client.db() // ou client.db("rfidlib")
+    const collection = db.collection("borrows")
 
-    return Response.json({ 
-      ok: true, 
+    // Enregistre l'emprunt
+    const result = await collection.insertOne({
       studentUid,
-      message: "Emprunt enregistré" 
-    });
+      createdAt: new Date(),
+      source: "esp32"
+    })
+
+    console.log("Borrow OK:", studentUid)
+
+    return Response.json({ ok: true, studentUid, id: result.insertedId })
 
   } catch (e) {
-    console.error("ERREUR BORROW:", e);
-    // Au lieu de crasher en 500, on renvoie l'erreur pour que tu voies
-    return Response.json({ 
-      error: "Server error", 
-      details: e.message,
-      stack: e.stack 
-    }, { status: 500 });
+    console.error("ERREUR MONGO:", e)
+    return Response.json({ error: e.message }, { status: 500 })
   }
 }
