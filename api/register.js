@@ -1,0 +1,2 @@
+import { MongoClient } from 'mongodb';let c;async function db(){if(!c){c=new MongoClient(process.env.MONGODB_URI);await c.connect()}return c.db('rfid_db')}
+export default async function handler(req,res){const d=await db();if(await d.collection('users').findOne({email:req.body.email}))return res.status(400).json({error:'Email déjà pris'});await d.collection('users').insertOne({email:req.body.email,password:req.body.password,name:req.body.name,uid:null});const u=await d.collection('users').findOne({email:req.body.email});res.json({success:true,user:u})}
