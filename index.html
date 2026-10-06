@@ -1,43 +1,49 @@
 <!DOCTYPE html>
-<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>RFIDlib</title>
 <style>
-body{font-family:system-ui;background:#fdfaf3;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0}
-.box{background:#fff;border:1px solid #eee;padding:25px;border-radius:25px;width:90%;max-width:380px;box-shadow:0 10px 30px #0001}
-h1{font-family:serif;text-align:center;font-size:40px;margin:10px 0}
-input{width:100%;padding:14px;margin:8px 0;border-radius:12px;border:1px solid #ddd;box-sizing:border-box;font-size:16px}
-button{width:100%;padding:14px;border-radius:12px;border:none;cursor:pointer;font-size:16px;margin:6px 0}
-.black{background:#000;color:#fff}.gray{background:#eee}
-#msg{color:red;text-align:center;margin-top:10px;min-height:20px}
-a{color:#5b2b99;text-align:center;display:block;margin-top:10px}
-</style></head><body>
+body{background:#fdfaf3;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;font-family:system-ui}
+.box{background:#fff;padding:30px;border-radius:24px;width:90%;max-width:380px;box-shadow:0 10px 20px #0001}
+h1{font-family:serif;text-align:center;font-size:42px}
+input{width:100%;padding:14px;margin:8px 0;border-radius:12px;border:1px solid #ddd;box-sizing:border-box}
+button{width:100%;padding:14px;border-radius:12px;border:none;font-weight:700;margin-top:8px}
+.black{background:#000;color:#fff}
+.gray{background:#eee}
+</style>
+</head>
+<body>
 <div class="box">
 <h1>RFIDlib.</h1>
-<input id="email" placeholder="email ex: rjfabricio1706@gmail.com" value="rjfabricio1706@gmail.com">
-<input id="uid" placeholder="UID Badge A1B1B4" value="A1B1B4">
-<input id="name" placeholder="Nom" value="Fab">
-<button class="black" onclick="login()">Se connecter</button>
-<button class="gray" onclick="location.href='/borrow.html'">Aller au Borrow direct</button>
-<div id="msg"></div>
-<a href="/admin.html">Admin</a>
+<input id="email" placeholder="Email">
+<input id="pass" type="password" placeholder="Mot de passe">
+<input id="name" placeholder="Prénom" style="display:none">
+<button class="black" id="btn1" onclick="login()">Se connecter</button>
+<button class="gray" id="btn2" onclick="toggle()">Créer un compte</button>
+<p id="msg" style="color:red;text-align:center"></p>
 </div>
+
 <script>
+let mode='login'
+function toggle(){
+ mode = mode=='login'?'register':'login'
+ document.getElementById('name').style.display = mode=='register'?'block':'none'
+ btn1.textContent = mode=='login'?'Se connecter':"S'inscrire"
+ btn2.textContent = mode=='login'?'Créer un compte':'J ai déjà un compte'
+}
 async function login(){
-  const userUid = document.getElementById('uid').value.toUpperCase().trim();
-  if(!userUid){msg.textContent='Mets ton UID badge';return;}
-  msg.textContent='Connexion...';
-  try{
-    const r = await fetch('/api/login-user',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({uid: userUid})
-    });
-    const data = await r.json();
-    if(!r.ok || !data.success){ msg.textContent = data.error || 'Non autorisé'; return; }
-    localStorage.setItem('rfid_user_token', data.token);
-    localStorage.setItem('rfid_user_email', data.user.email);
-    location.href='/borrow.html';
-  }catch(e){ msg.textContent='Erreur serveur'; }
+ const email=document.getElementById('email').value
+ const password=document.getElementById('pass').value
+ const name=document.getElementById('name').value
+ const url = mode=='login'?'/api/login-user':'/api/register'
+ const body = mode=='login'?{email,password}:{email,password,name}
+ const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json())
+ if(!r.success){msg.textContent=r.error;return}
+ localStorage.setItem('email',email)
+ location.href='/catalog.html'
 }
 </script>
-</body></html>
+</body>
+</html>
