@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Catalogue</title>
+<style>
+body{margin:0;font-family:system-ui;background:#fdfaf3}
+.top{background:#fff;padding:12px;display:flex;gap:8px;position:sticky;top:0;border-bottom:1px solid #eee}
+.top input{flex:1;padding:12px;border-radius:20px;border:1px solid #ddd;background:#f5f5f0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px}
+.card{background:#fff;padding:10px;border-radius:16px;border:1px solid #eee}
+.cover{height:110px;background:#f1f3f4;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:36px;overflow:hidden}
+.cover img{width:100%;height:100%;object-fit:cover}
+</style>
+</head>
+<body>
+<div class="top"><b>RFIDlib.</b><input id="search" placeholder="🔍 Rechercher..." oninput="show()"></div>
+<div class="grid" id="grid"></div>
+
+<script>
+let books=[]
+async function load(){
+ books = await fetch('/api/book').then(r=>r.json())
+ show()
+}
+function show(){
+ const q = search.value.toLowerCase()
+ const list = books.filter(b=>b.title.toLowerCase().includes(q) || (b.author||'').toLowerCase().includes(q))
+ grid.innerHTML = list.map(b=>`
+  <div class="card">
+   <div class="cover">${b.cover?`<img src="${b.cover}">`:'📖'}</div>
+   <b>${b.title}</b><br>
+   <span style="font-size:12px;color:#666">${b.author||''}</span><br>
+   <span style="font-size:11px">${b.disponible!==false?'🟢 Dispo':'🔴 Emprunté'}</span>
+  </div>
+ `).join('')
+}
+load()
+</script>
+</body>
+</html>
