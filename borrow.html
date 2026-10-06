@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Emprunt</title><link rel="stylesheet" href="style.css">
+<style>
+#content{padding:15px} .card{border:1px solid #ddd;padding:12px;margin:10px 0;border-radius:10px}
+input{width:100%;padding:10px;margin:6px 0;border-radius:8px;border:1px solid #ccc}
+button{width:100%;padding:12px;background:#000;color:#fff;border:none;border-radius:8px;margin-top:10px}
+</style></head><body>
+<div id="content">
+<h2>Emprunter / Retourner</h2>
+<a href="/">← Accueil</a> | <a href="/admin.html">Admin</a>
+
+<input id="userUid" placeholder="UID Badge User (ex: A1B1B4)">
+<input id="bookUid" placeholder="UID Livre (ex: DHDJ)">
+<button onclick="doBorrow()">Emprunter / Retourner</button>
+
+<div id="result" style="margin-top:15px"></div>
+<h3>Log</h3><div id="log"></div>
+</div>
+
+<script>
+async function doBorrow(){
+ const userUid = document.getElementById('userUid').value.toUpperCase().trim();
+ const bookUid = document.getElementById('bookUid').value.toUpperCase().trim();
+ if(!userUid||!bookUid) return alert('Remplis les 2 UIDs');
+ result.innerHTML='...';
+ try{
+  const r = await fetch('/api/borrow',{
+   method:'POST',
+   headers:{'Content-Type':'application/json'},
+   body: JSON.stringify({ userUid, bookUid })
+  }).then(r=>r.json());
+  if(r.error){ result.innerHTML=`<div class="card" style="background:#fdd">❌ ${r.error}</div>`; }
+  else { result.innerHTML=`<div class="card" style="background:#dfd">✅ ${r.message}</div>`; loadLog(); }
+ }catch(e){ result.innerHTML='Erreur reseau: '+e.message; }
+}
+async function loadLog(){
+ try{
+  const logs = await fetch('/api/borrow').then(r=>r.json());
+  log.innerHTML = logs.slice(0,10).map(l=>`<div class="card">${l.bookTitle||l.bookUid} - ${l.userEmail||l.userUid}<br>${new Date(l.date).toLocaleString()}<br>${l.action}</div>`).join('');
+ }catch(e){}
+}
+// si ton ESP envoie ?userUid=...&bookUid=... dans l'URL, ça remplit auto
+const p=new URLSearchParams(location.search);
+if(p.get('userUid')) userUid.value=p.get('userUid');
+if(p.get('bookUid')) bookUid.value=p.get('bookUid');
+loadLog();
+</script>
+</body></html>
