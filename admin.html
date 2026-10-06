@@ -1,55 +1,57 @@
-<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Admin</title>
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin</title><link rel="stylesheet" href="style.css">
 <style>
-body{background:#f8f6f3;display:flex;justify-content:center;padding-top:80px;font-family:sans-serif}
-.card{background:#fff;border-radius:24px;padding:32px 24px;width:90%;max-width:360px;box-shadow:0 4px 20px #0001;text-align:center}
-input{width:100%;padding:14px 16px;border-radius:12px;border:1px solid #ddd;margin:12px 0;box-sizing:border-box}
-button{width:100%;padding:14px;background:#111;color:#fff;border-radius:12px;border:none;font-weight:bold}
-.grid{display:grid;gap:12px;margin-top:16px}
-.item{background:#fff;padding:12px;border-radius:12px;border:1px solid #eee;text-align:left}
+#content{padding:15px} .card{border:1px solid #ddd;padding:10px;margin:8px 0;border-radius:8px;display:flex;justify-content:space-between}
+.admin-form{border:1px solid #000;padding:12px;margin:15px 0;border-radius:10px}
+input{width:100%;padding:8px;margin:5px 0} button{padding:8px 15px;background:#000;color:#fff;border:none;border-radius:6px}
 </style></head><body>
+<div id="content">
+<h2>ADMIN - plus de mot de passe</h2>
+<a href="/">← Accueil</a>
 
-<div id="lock" class="card">
-<h1>Admin</h1>
-<input id="pin" placeholder="PIN admin123" type="password">
-<button onclick="doLogin()">Entrer</button>
+<div class="admin-form">
+<h3>1. Lier badge à un user</h3>
+<input id="emailLink" placeholder="email de l'user (ex: toi@gmail.com)">
+<input id="uidLink" placeholder="UID du badge (ex: A1B2C3)">
+<button onclick="linkUser()">Lier</button>
 </div>
 
-<div id="content" style="display:none; width:95%; max-width:800px">
-<div class="card" style="width:100%; max-width:800px">
-<h2>Lier badge</h2>
-<input id="emailLink" placeholder="email utilisateur">
-<input id="uidLink" placeholder="UID Badge">
-<button onclick="linkUser()">Lier</button>
-<hr style="margin:24px 0">
-<h2>Ajouter livre</h2>
-<input id="uidBook" placeholder="UID Livre">
+<div class="admin-form">
+<h3>2. Créer un livre</h3>
+<input id="uidBook" placeholder="UID Livre scanné par ESP">
 <input id="titleBook" placeholder="Titre">
 <input id="authorBook" placeholder="Auteur">
-<button onclick="addBook()">Ajouter</button>
-<hr style="margin:24px 0">
-<div id="list"></div>
-<button onclick="logout()" style="margin-top:20px;background:#eee;color:#111">Logout</button>
+<button onclick="addBook()">Ajouter livre</button>
 </div>
+
+<h3>Users</h3><div id="users">chargement...</div>
+<h3>Livres</h3><div id="books">chargement...</div>
 </div>
 
 <script>
-const PIN = "admin123";
-function doLogin(){
-  if(document.getElementById('pin').value === PIN || new URLSearchParams(location.search).get('pin')===PIN){
-    localStorage.setItem('admin','ok'); location.reload();
-  } else alert('Mauvais PIN, tape admin123');
-}
-if(localStorage.getItem('admin')==='ok' || new URLSearchParams(location.search).get('pin')===PIN){
-  document.getElementById('lock').style.display='none';
-  document.getElementById('content').style.display='block';
-  if(new URLSearchParams(location.search).get('pin')===PIN) localStorage.setItem('admin','ok');
-  loadAll();
-}
-function logout(){ localStorage.removeItem('admin'); location.reload(); }
-
 async function loadAll(){
-  try{
-    let books = await fetch('/api/books').then(r=>r.json());
-    document.getElementById('list').innerHTML = books.map(b=>`<div class="item"><b>${b.title}</b> - ${b.author||''}<br>UID:${b.uid}<br>${b.disponible?'🟢 dispo':'🔴 '+b.empruntePar} <button onclick="del('${b.uid}')" style="width:auto;padding:4px 8px;float:right">x</button></div>`).join('');
-  }catch(e){ document.getElementById('list').innerHTML = 'Erreur chargement:
+ try{
+  let u=await fetch('/api/auth').then(r=>r.json());
+  users.innerHTML=u.map(x=>`<div class="card"><div><b>${x.name||''}</b><br>${x.email}<br>UID: ${x.uid||'❌ non lié'}</div></div>`).join('');
+  let b=await fetch('/api/books').then(r=>r.json());
+  books.innerHTML=b.map(book=>`<div class="card"><div><b>${book.title}</b> - ${book.author||''}<br>UID: ${book.uid}<br>${book.disponible===false?'🔴 emprunté par '+book.empruntePar:'🟢 dispo'}</div><button onclick="delBook('${book.uid}')">X</button></div>`).join('');
+ }catch(e){ console.log(e); }
+}
+async function linkUser(){
+ let email=emailLink.value.trim(), uid=uidLink.value.toUpperCase().trim();
+ if(!email||!uid) return alert('remplis tout');
+ let r=await fetch('/api/link-badge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,uid})}).then(r=>r.json());
+ alert(r.success?'Lié !':'Erreur: '+(r.error||'')); loadAll();
+}
+async function addBook(){
+ let uid=uidBook.value.toUpperCase().trim(), title=titleBook.value.trim(), author=authorBook.value.trim();
+ if(!uid||!title) return alert('UID + titre');
+ let r=await fetch('/api/books',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uid,title,author})}).then(r=>r.json());
+ if(r.error) alert(r.error); else { alert('Livre ajouté'); uidBook.value=''; titleBook.value=''; loadAll(); }
+}
+async function delBook(uid){ if(!confirm('Supprimer '+uid+' ?')) return; await fetch('/api/books?uid='+uid,{method:'DELETE'}); loadAll(); }
+loadAll();
+setInterval(loadAll,4000);
+</script>
+</body></html>
