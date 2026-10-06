@@ -11,7 +11,7 @@
 <script>
 if(localStorage.getItem('admin')==='ok'){lock.style.display='none';content.style.display='block';loadAll()}
 async function loadAll(){
-  let u=await fetch('/api/auth').then(r=>r.json());
+  let b=await fetch('/api/books').then(r=>r.json());
   users.innerHTML=u.map(x=>`<div class="card"><div><b>${x.name}</b><br><small>${x.email}</small><br><small style="color:${x.rfidUid?'green':'red'}">${x.rfidUid?'Badge: '+x.rfidUid:'Pas de badge'}</small></div></div>`).join('');
   let b=await fetch('/api/rfid').then(r=>r.json());
   books.innerHTML=b.map(book=>`<div class="card"><div><h3>${book.title}</h3><small>UID: ${book.uid}</small><br>${book.status=='emprunté'?`<b style="color:red">→ ${book.borrowedName} (${book.borrowedBy})</b>`:`<b style="color:green">→ Disponible</b>`}<br><small>${book.lastScan}</small></div><button onclick="delBook('${book.uid}')">X</button></div>`).join('');
