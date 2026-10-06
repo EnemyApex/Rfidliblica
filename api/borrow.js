@@ -1,57 +1,44 @@
 import { MongoClient } from 'mongodb';
-
 const uri = process.env.MONGODB_URI;
 let client;
+async function getDb(){ if(!client){ client=new MongoClient(uri); await client.connect(); } return client.db('rfid_db'); }
 
-async function getClient() {
-  if (!client) {
-    client = new MongoClient(uri);
-    await client.connect();
+export default async function handler(req,res){
+ try{
+  const db = await getDb();
+  const books = db.collection('books');
+  const users = db.collection('users');
+  const logs = db.collection('logs');
+
+  if(req.method==='GET'){
+   const all = await logs.find({}).sort({date:-1}).limit(20).toArray();
+   return res.json(all);
   }
-  return client;
-}
 
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method === 'GET') return res.status(200).json({ ok: true, msg: "API borrow alive" });
-  if (req.method !== 'POST') return res.status(405).json({error:'POST only'});
+  if(req.method==='POST'){
+   const { userUid, bookUid } = req.body;
+   const cleanUser = userUid.toUpperCase().trim();
+   const cleanBook = bookUid.toUpperCase().trim();
 
-  try {
-    const { studentUid, bookUid, uid } = req.body || {};
-    const finalStudentUid = (studentUid || uid || '').toString().toUpperCase().trim();
-    const finalBookUid = (bookUid || '').toString().toUpperCase().trim();
+   const user = await users.findOne({ uid: cleanUser });
+   if(!user) return res.status(404).json({error:'Badge user inconnu. Lie le dans admin.html'});
 
-    if (!finalStudentUid) return res.status(400).json({error:'studentUid manquant'});
+   const book = await books.findOne({ uid: cleanBook });
+   if(!book) return res.status(404).json({error:'Livre inconnu. Cree le dans admin.html'});
 
-    const mongo = await getClient();
-    const db = mongo.db();
+   let action, message;
+   if(book.disponible===false){
+     // retour si c'est le même user qui rend, ou force retour
+     await books.updateOne({uid:cleanBook},{$set:{disponible:true, empruntePar:null}});
+     action='retour'; message=`Retour OK : ${book.title} rendu`;
+   }else{
+     await books.updateOne({uid:cleanBook},{$set:{disponible:false, empruntePar:user.email}});
+     action='emprunt'; message=`Emprunt OK : ${book.title} par ${user.email}`;
+   }
 
-    // Cherche dans users PUIS students pour pas te bloquer
-    let student = await db.collection('users').findOne({ uid: finalStudentUid });
-    if(!student) student = await db.collection('students').findOne({ uid: finalStudentUid });
-    if (!student) return res.status(404).json({error:`Etudiant ${finalStudentUid} inconnu - lie son badge dans admin.html`});
-
-    if (!finalBookUid) {
-       await db.collection('transactions').insertOne({ studentUid: finalStudentUid, studentName: student.name, type: 'scan', date: new Date() });
-       return res.status(200).json({ success: true, action: 'scan', student: student.name });
-    }
-
-    const book = await db.collection('books').findOne({ uid: finalBookUid });
-    if (!book) return res.status(404).json({error:`Livre ${finalBookUid} inconnu - crée le dans admin.html`});
-
-    // TA LOGIQUE BORROW / RETURN - je la garde
-    if (book.disponible !== false) {
-      await db.collection('books').updateOne({ uid: finalBookUid }, { $set: { disponible: false, empruntePar: student.name, emprunteParUid: finalStudentUid } });
-      await db.collection('transactions').insertOne({ studentUid: finalStudentUid, bookUid: finalBookUid, studentName: student.name, bookTitle: book.title, type: 'borrow', date: new Date() });
-      return res.status(200).json({ success: true, action: 'borrow', message: `${book.title} emprunté par ${student.name}` });
-    } else {
-      await db.collection('books').updateOne({ uid: finalBookUid }, { $set: { disponible: true, empruntePar: null, emprunteParUid: null } });
-      await db.collection('transactions').insertOne({ studentUid: finalStudentUid, bookUid: finalBookUid, studentName: student.name, bookTitle: book.title, type: 'return', date: new Date() });
-      return res.status(200).json({ success: true, action: 'return', message: `${book.title} rendu par ${student.name}` });
-    }
-  } catch(e) {
-    console.error(e);
-    return res.status(500).json({error: e.message});
+   await logs.insertOne({ userUid:cleanUser, userEmail:user.email, bookUid:cleanBook, bookTitle:book.title, action, date:new Date() });
+   return res.json({success:true, message});
   }
+  return res.status(405).json({error:'method not allowed'});
+ }catch(e){ console.error(e); return res.status(500).json({error:e.message}); }
 }
