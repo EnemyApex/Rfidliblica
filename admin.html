@@ -1,57 +1,20 @@
 <!DOCTYPE html>
-<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Admin</title><link rel="stylesheet" href="style.css">
-<style>
-#content{padding:15px} .card{border:1px solid #ddd;padding:10px;margin:8px 0;border-radius:8px;display:flex;justify-content:space-between}
-.admin-form{border:1px solid #000;padding:12px;margin:15px 0;border-radius:10px}
-input{width:100%;padding:8px;margin:5px 0} button{padding:8px 15px;background:#000;color:#fff;border:none;border-radius:6px}
-</style></head><body>
-<div id="content">
-<h2>ADMIN - plus de mot de passe</h2>
-<a href="/">← Accueil</a>
-
-<div class="admin-form">
-<h3>1. Lier badge à un user</h3>
-<input id="emailLink" placeholder="email de l'user (ex: toi@gmail.com)">
-<input id="uidLink" placeholder="UID du badge (ex: A1B2C3)">
-<button onclick="linkUser()">Lier</button>
-</div>
-
-<div class="admin-form">
-<h3>2. Créer un livre</h3>
-<input id="uidBook" placeholder="UID Livre scanné par ESP">
-<input id="titleBook" placeholder="Titre">
-<input id="authorBook" placeholder="Auteur">
-<button onclick="addBook()">Ajouter livre</button>
-</div>
-
-<h3>Users</h3><div id="users">chargement...</div>
-<h3>Livres</h3><div id="books">chargement...</div>
-</div>
-
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin RFID</title>
+<style>body{font-family:system-ui;background:#f6f6f6;margin:0}#login{position:fixed;inset:0;background:#000;color:#fff;display:flex;align-items:center;justify-content:center;z-index:9999}#loginBox{background:#222;padding:25px;border-radius:15px;width:90%;max-width:350px}#content{padding:15px;display:none}.card{border:1px solid #ddd;padding:12px;margin:10px 0;border-radius:10px;background:#fff}input{width:100%;padding:10px;margin:6px 0;border-radius:8px;border:1px solid #ccc;box-sizing:border-box}button{padding:12px;background:#000;color:#fff;border:none;border-radius:8px;width:100%} </style></head><body>
+<div id="login"><div id="loginBox"><h2>🔒 Admin</h2><p>Mot de passe: overflowteam</p><input id="passInput" type="password" placeholder="overflowteam"><button onclick="doLogin()">Se connecter</button><div id="loginErr" style="color:#ff6b6b;margin-top:10px"></div></div></div>
+<div id="content"><div style="display:flex;justify-content:space-between"><h2>Admin RFID</h2><button onclick="logout()" style="width:auto;background:#c00">Logout</button></div><a href="/">Accueil</a> | <a href="/borrow.html">Borrow</a>
+<div class="card"><h3>1. Lier badge</h3><input id="email" placeholder="email"><input id="uidUser" placeholder="UID Badge A1B1B4"><button onclick="linkBadge()">Lier</button><div id="msgLink"></div></div>
+<div class="card"><h3>2. Créer livre</h3><input id="title" placeholder="Titre"><input id="author" placeholder="Auteur"><input id="uidBook" placeholder="UID Livre DHDJ"><button onclick="addBook()">Ajouter</button><div id="msgBook"></div></div>
+<h3>Users</h3><div id="users"></div><h3>Livres</h3><div id="books"></div></div>
 <script>
-async function loadAll(){
- try{
-  let u=await fetch('/api/auth').then(r=>r.json());
-  users.innerHTML=u.map(x=>`<div class="card"><div><b>${x.name||''}</b><br>${x.email}<br>UID: ${x.uid||'❌ non lié'}</div></div>`).join('');
-  let b=await fetch('/api/books').then(r=>r.json());
-  books.innerHTML=b.map(book=>`<div class="card"><div><b>${book.title}</b> - ${book.author||''}<br>UID: ${book.uid}<br>${book.disponible===false?'🔴 emprunté par '+book.empruntePar:'🟢 dispo'}</div><button onclick="delBook('${book.uid}')">X</button></div>`).join('');
- }catch(e){ console.log(e); }
-}
-async function linkUser(){
- let email=emailLink.value.trim(), uid=uidLink.value.toUpperCase().trim();
- if(!email||!uid) return alert('remplis tout');
- let r=await fetch('/api/link-badge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,uid})}).then(r=>r.json());
- alert(r.success?'Lié !':'Erreur: '+(r.error||'')); loadAll();
-}
-async function addBook(){
- let uid=uidBook.value.toUpperCase().trim(), title=titleBook.value.trim(), author=authorBook.value.trim();
- if(!uid||!title) return alert('UID + titre');
- let r=await fetch('/api/books',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uid,title,author})}).then(r=>r.json());
- if(r.error) alert(r.error); else { alert('Livre ajouté'); uidBook.value=''; titleBook.value=''; loadAll(); }
-}
-async function delBook(uid){ if(!confirm('Supprimer '+uid+' ?')) return; await fetch('/api/books?uid='+uid,{method:'DELETE'}); loadAll(); }
-loadAll();
-setInterval(loadAll,4000);
-</script>
-</body></html>
+let ADMIN_KEY=localStorage.getItem('rfid_admin_key')||'';
+function getH(){return{'Content-Type':'application/json','x-admin-key':ADMIN_KEY};}
+async function checkAuth(){const r=await fetch('/api/auth',{headers:getH()});return r.ok;}
+async function doLogin(){ADMIN_KEY=document.getElementById('passInput').value.trim();if(await checkAuth()){localStorage.setItem('rfid_admin_key',ADMIN_KEY);location.reload();}else{loginErr.textContent='Mot de passe faux';}}
+function logout(){localStorage.removeItem('rfid_admin_key');location.reload();}
+async function loadAll(){const d=await fetch('/api/auth',{headers:getH()}).then(r=>r.json());users.innerHTML=(d.users||[]).map(u=>`<div class=card>${u.email} - UID: <b>${u.uid||'non lié'}</b></div>`).join('');books.innerHTML=(d.books||[]).map(b=>`<div class=card>${b.title} - ${b.uid} - ${b.disponible?'🟢':'🔴'}</div>`).join('');}
+async function linkBadge(){const r=await fetch('/api/link-badge',{method:'POST',headers:getH(),body:JSON.stringify({email:email.value,uid:uidUser.value})}).then(r=>r.json());msgLink.textContent=r.success?'✅ Lié':'❌ '+r.error;if(r.success)loadAll();}
+async function addBook(){const r=await fetch('/api/add-book',{method:'POST',headers:getH(),body:JSON.stringify({title:title.value,author:author.value,uid:uidBook.value})}).then(r=>r.json());msgBook.textContent=r.success?'✅ Ajouté':'❌ '+r.error;if(r.success)loadAll();}
+(async()=>{if(ADMIN_KEY&&await checkAuth()){document.getElementById('login').style.display='none';document.getElementById('content').style.display='block';loadAll();}})();
+</script></body></html>
