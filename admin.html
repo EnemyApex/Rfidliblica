@@ -1,23 +1,55 @@
-<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Admin RFID</title><link rel="stylesheet" href="style.css"></head>
-<body>
-<div id="lock"><div class="login-card"><h2>Admin</h2><input id="pin" type="password" placeholder="PIN admin123"><button onclick="if(pin.value==='admin123'){localStorage.setItem('admin','ok');location.reload()}">Entrer</button></div></div>
-<div id="content" style="display:none">
-<header><div class="logo">ADMIN</div><div><a href="/" class="live">USER</a> <a href="#" onclick="localStorage.clear();location.reload()" style="font-size:12px">Logout</a></div></header>
-<div class="admin-form"><h3>Lier badge à utilisateur</h3><input id="emailLink" placeholder="Email utilisateur"><input id="uidLink" placeholder="UID badge (ex: 73A9B2C1)"><button onclick="linkUser()">Lier badge</button></div>
-<div class="admin-form"><h3>Ajouter livre manuel</h3><input id="uidBook" placeholder="UID Livre"><input id="titleBook" placeholder="Titre"><input id="authorBook" placeholder="Auteur"><button onclick="addBook()">Ajouter livre</button></div>
-<h3>Utilisateurs</h3><div id="users" class="grid"></div>
-<h3 style="margin-top:20px">Livres + Emprunteur</h3><div id="books" class="grid"></div>
+<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin</title>
+<style>
+body{background:#f8f6f3;display:flex;justify-content:center;padding-top:80px;font-family:sans-serif}
+.card{background:#fff;border-radius:24px;padding:32px 24px;width:90%;max-width:360px;box-shadow:0 4px 20px #0001;text-align:center}
+input{width:100%;padding:14px 16px;border-radius:12px;border:1px solid #ddd;margin:12px 0;box-sizing:border-box}
+button{width:100%;padding:14px;background:#111;color:#fff;border-radius:12px;border:none;font-weight:bold}
+.grid{display:grid;gap:12px;margin-top:16px}
+.item{background:#fff;padding:12px;border-radius:12px;border:1px solid #eee;text-align:left}
+</style></head><body>
+
+<div id="lock" class="card">
+<h1>Admin</h1>
+<input id="pin" placeholder="PIN admin123" type="password">
+<button onclick="doLogin()">Entrer</button>
 </div>
+
+<div id="content" style="display:none; width:95%; max-width:800px">
+<div class="card" style="width:100%; max-width:800px">
+<h2>Lier badge</h2>
+<input id="emailLink" placeholder="email utilisateur">
+<input id="uidLink" placeholder="UID Badge">
+<button onclick="linkUser()">Lier</button>
+<hr style="margin:24px 0">
+<h2>Ajouter livre</h2>
+<input id="uidBook" placeholder="UID Livre">
+<input id="titleBook" placeholder="Titre">
+<input id="authorBook" placeholder="Auteur">
+<button onclick="addBook()">Ajouter</button>
+<hr style="margin:24px 0">
+<div id="list"></div>
+<button onclick="logout()" style="margin-top:20px;background:#eee;color:#111">Logout</button>
+</div>
+</div>
+
 <script>
-if(localStorage.getItem('admin')==='ok'){lock.style.display='none';content.style.display='block';loadAll()}
-async function loadAll(){
-  let b=await fetch('/api/books').then(r=>r.json());
-  users.innerHTML=u.map(x=>`<div class="card"><div><b>${x.name}</b><br><small>${x.email}</small><br><small style="color:${x.rfidUid?'green':'red'}">${x.rfidUid?'Badge: '+x.rfidUid:'Pas de badge'}</small></div></div>`).join('');
-  let b=await fetch('/api/rfid').then(r=>r.json());
-  books.innerHTML=b.map(book=>`<div class="card"><div><h3>${book.title}</h3><small>UID: ${book.uid}</small><br>${book.status=='emprunté'?`<b style="color:red">→ ${book.borrowedName} (${book.borrowedBy})</b>`:`<b style="color:green">→ Disponible</b>`}<br><small>${book.lastScan}</small></div><button onclick="delBook('${book.uid}')">X</button></div>`).join('');
+const PIN = "admin123";
+function doLogin(){
+  if(document.getElementById('pin').value === PIN || new URLSearchParams(location.search).get('pin')===PIN){
+    localStorage.setItem('admin','ok'); location.reload();
+  } else alert('Mauvais PIN, tape admin123');
 }
-async function linkUser(){ let email=emailLink.value, uid=uidLink.value.toUpperCase(); if(!email||!uid) return alert('Manque'); await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'updateRfid',email,rfidUid:uid})}); loadAll(); }
-async function addBook(){ let uid=uidBook.value.toUpperCase(), title=titleBook.value, author=authorBook.value; if(!uid||!title) return alert('Manque'); await fetch('/api/rfid',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uid,title,author,admin:'admin'})}); loadAll(); }
-async function delBook(uid){ await fetch('/api/rfid?uid='+uid,{method:'DELETE'}); loadAll(); }
-setInterval(()=>{ if(localStorage.getItem('admin')==='ok') loadAll(); },2000);
-</script></body></html>
+if(localStorage.getItem('admin')==='ok' || new URLSearchParams(location.search).get('pin')===PIN){
+  document.getElementById('lock').style.display='none';
+  document.getElementById('content').style.display='block';
+  if(new URLSearchParams(location.search).get('pin')===PIN) localStorage.setItem('admin','ok');
+  loadAll();
+}
+function logout(){ localStorage.removeItem('admin'); location.reload(); }
+
+async function loadAll(){
+  try{
+    let books = await fetch('/api/books').then(r=>r.json());
+    document.getElementById('list').innerHTML = books.map(b=>`<div class="item"><b>${b.title}</b> - ${b.author||''}<br>UID:${b.uid}<br>${b.disponible?'🟢 dispo':'🔴 '+b.empruntePar} <button onclick="del('${b.uid}')" style="width:auto;padding:4px 8px;float:right">x</button></div>`).join('');
+  }catch(e){ document.getElementById('list').innerHTML = 'Erreur chargement:
