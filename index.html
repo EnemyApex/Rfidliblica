@@ -1,21 +1,43 @@
 <!DOCTYPE html>
-<html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RFIDlib</title><link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@700&family=Inter&display=swap" rel="stylesheet"><link rel="stylesheet" href="style.css"></head>
-<body>
-<div id="login"><div class="login-card">
-<h1 style="font-family:Fraunces">RFIDlib.</h1>
-<input id="email" type="email" placeholder="Email">
-<input id="pass" type="password" placeholder="Mot de passe">
-<input id="name" placeholder="Prénom (pour inscription)">
-<button onclick="doAuth('login')">Se connecter</button>
-<button style="background:#eee;color:#111" onclick="doAuth('register')">Créer un compte</button>
-<p id="msg" style="font-size:12px;color:red"></p>
-<a href="/admin.html" style="font-size:12px;margin-top:10px">Admin</a>
-</div></div>
-<div id="app" style="display:none">
-<header><div class="logo">RFIDlib.</div><div><small id="userName"></small> <a href="#" onclick="logout()" style="font-size:12px;margin-left:8px">Quitter</a></div></header>
-<div class="stats"><div class="stat"><b id="total">0</b><span>Total</span></div><div class="stat"><b id="dispo">0</b><span>Dispo</span></div><div class="stat"><b id="empr">0</b><span>Mes emprunts</span></div></div>
-<input id="search" placeholder="Rechercher livre..." oninput="filterBooks()">
-<div id="books" class="grid"></div><div id="empty">En attente de badge...<br><small>Scanne ton badge puis un livre</small></div>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RFIDlib</title>
+<style>
+body{font-family:system-ui;background:#fdfaf3;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0}
+.box{background:#fff;border:1px solid #eee;padding:25px;border-radius:25px;width:90%;max-width:380px;box-shadow:0 10px 30px #0001}
+h1{font-family:serif;text-align:center;font-size:40px;margin:10px 0}
+input{width:100%;padding:14px;margin:8px 0;border-radius:12px;border:1px solid #ddd;box-sizing:border-box;font-size:16px}
+button{width:100%;padding:14px;border-radius:12px;border:none;cursor:pointer;font-size:16px;margin:6px 0}
+.black{background:#000;color:#fff}.gray{background:#eee}
+#msg{color:red;text-align:center;margin-top:10px;min-height:20px}
+a{color:#5b2b99;text-align:center;display:block;margin-top:10px}
+</style></head><body>
+<div class="box">
+<h1>RFIDlib.</h1>
+<input id="email" placeholder="email ex: rjfabricio1706@gmail.com" value="rjfabricio1706@gmail.com">
+<input id="uid" placeholder="UID Badge A1B1B4" value="A1B1B4">
+<input id="name" placeholder="Nom" value="Fab">
+<button class="black" onclick="login()">Se connecter</button>
+<button class="gray" onclick="location.href='/borrow.html'">Aller au Borrow direct</button>
+<div id="msg"></div>
+<a href="/admin.html">Admin</a>
 </div>
-<script src="script.js"></script></body></html>
+<script>
+async function login(){
+  const userUid = document.getElementById('uid').value.toUpperCase().trim();
+  if(!userUid){msg.textContent='Mets ton UID badge';return;}
+  msg.textContent='Connexion...';
+  try{
+    const r = await fetch('/api/login-user',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({uid: userUid})
+    });
+    const data = await r.json();
+    if(!r.ok || !data.success){ msg.textContent = data.error || 'Non autorisé'; return; }
+    localStorage.setItem('rfid_user_token', data.token);
+    localStorage.setItem('rfid_user_email', data.user.email);
+    location.href='/borrow.html';
+  }catch(e){ msg.textContent='Erreur serveur'; }
+}
+</script>
+</body></html>
